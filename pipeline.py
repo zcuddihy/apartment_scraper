@@ -5,8 +5,9 @@ from src.scraper import make_request, generate_page_URL
 import src.unit_parser as unit_parser
 import src.property_parser as property_parser
 import src.database as db
+import pickle as pkl
 
-db_file = "../data/apartments.db"
+db_file = "./data/apartments.db"
 
 
 class ApartmentsPipeline:
@@ -37,9 +38,9 @@ class ApartmentsPipeline:
             price_step (int, optional): Sets the min and max price range. Defaults to 500.
         """
 
-        self.start_price = start_price
-        self.end_price = end_price
-        self.price_step = price_step
+        self.start_price = int(start_price)
+        self.end_price = int(end_price)
+        self.price_step = int(price_step)
         self.city_name = city_name
         self.state_abbv = state_abbv
         self.conn = db.create_connection(db_file)
@@ -47,6 +48,7 @@ class ApartmentsPipeline:
         self.price_range = list(np.arange(start_price, end_price, price_step))
         self.page_range = list(np.arange(1, 29, 1))
         self.property_urls = []
+        self.empty_units_logger = []
         self.scrape_count = 0
 
     def sleep_crawler(self):
@@ -95,13 +97,11 @@ class ApartmentsPipeline:
                     strip=True
                 )
                 # Extract all property details and save to the db
-                property_data = ApartmentsPipeline.save_property_data(
-                    self.conn, soup, property_name, self.city_name, url
+                property_data = self.save_property_data(
+                    soup, property_name, self.city_name, url
                 )
                 # Find all of the current unit listings
-                ApartmentsPipeline.save_units_data(
-                    self.conn, soup, property_name, property_data["zipcode"]
-                )
+                self.save_units_data(soup, property_name, property_data["zipcode"], url)
 
             except Exception as e:
                 print(f"The exception, {e}, occured at the following URL: {url}")
@@ -112,8 +112,7 @@ class ApartmentsPipeline:
         # Close db connection after all information is saved
         self.conn.close()
 
-    @staticmethod
-    def save_property_data(conn, soup, property_name, city_name, url):
+    def save_property_data(self, soup, property_name, city_name, url):
         property_data = property_parser.Property(
             property_name, url
         ).parse_property_page(soup)
@@ -121,20 +120,24 @@ class ApartmentsPipeline:
         property_data["city_name"] = city_name
         if (
             db.property_exists(
-                conn, property_data["property_name"], property_data["zipcode"]
+                self.conn, property_data["property_name"], property_data["zipcode"]
             )
             != 1
         ):
-            db.insert_data(conn, property_data, "properties")
+            db.insert_data(self.conn, property_data, "properties")
         else:
-            db.update_data(conn, property_data)
+            db.update_data(self.conn, property_data)
 
         return property_data
 
-    @staticmethod
-    def save_units_data(conn, soup, property_name, zipcode):
+    def save_units_data(self, soup, property_name, zipcode, url):
 
         units = ApartmentsPipeline.get_all_units(soup)
+
+        # Keep track of all units that don't have any units listed
+        # This will alert me if the HTML format is likely different
+        if len(units) == 0:
+            self.empty_units_logger.append(url)
 
         # Extract each unit from the listing and save to the db
         for unit in units:
@@ -142,7 +145,7 @@ class ApartmentsPipeline:
                 unit
             )
             if current_unit["date_available"] != "Not Available":
-                db.insert_data(conn, current_unit, "units")
+                db.insert_data(self.conn, current_unit, "units")
             else:
                 pass
 
@@ -177,6 +180,10 @@ class ApartmentsPipeline:
         self.scrape_property_urls()
         print("Done!")
 
+        # Save the list of urls that had no units
+        with open("./data/no_units_found.pickle", "wb") as handle:
+            pkl.dump(self.empty_units_logger, handle)
+
 
 seattle_counties = ["King County"]
 
@@ -202,7 +209,7 @@ if __name__ == "__main__":
     # Collect the information to set up the scraping pipeline
     city_names = input("Enter the city name:  ").split(",")
     state_abbv = input("Enter the state abbreviation:  ")
-    end_price = input("Enter the maximum price to consider for scraping URLs:  ")
+    end_price = int(input("Enter the maximum price to consider for scraping URLs:  "))
 
     # Record the start time of the program
     start_time = time.time()
