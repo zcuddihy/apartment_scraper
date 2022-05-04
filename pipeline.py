@@ -1,4 +1,3 @@
-#%%
 from sys import argv
 import numpy as np
 import time
@@ -199,6 +198,12 @@ nyc_counties = [
 
 chicago_counties = ["Chicago"]
 
+# San Diego
+
+# Boston
+
+# Washington DC
+
 if __name__ == "__main__":
 
     # Collect the information to set up the scraping pipeline
@@ -219,4 +224,3 @@ if __name__ == "__main__":
     # Report the total time used
     print("Time used: {}".format(time.time() - start_time))
 
-# %%
