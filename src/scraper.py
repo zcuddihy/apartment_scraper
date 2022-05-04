@@ -6,8 +6,8 @@ import numpy as np
 
 def make_request(
     url: str,
-    min_delay: int = 1,
-    max_delay: int = 6,
+    min_delay: int = 0.5,
+    max_delay: int = 3.5,
     timeout: int = 15,
     retry_attempt: bool = False,
 ):

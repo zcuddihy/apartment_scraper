@@ -6,20 +6,19 @@ from datetime import date
 
 @dataclass
 class Single_Unit:
-    property_name: str
-    property_zipcode: str
-    unit_id: str = field(init=False)
+    property_id: int
+    unit_label: str = field(init=False)
     rent: str = field(init=False)
     beds: str = field(init=False)
     baths: str = field(init=False)
     area: str = field(init=False)
     date_available: str = field(init=False)
 
-    def get_unit_id(self, unit):
+    def get_unit_label(self, unit):
         try:
-            self.unit_id = unit["data-unit"]
+            self.unit_label = unit["data-unit"]
         except:
-            self.unit_id = unit.find("span", {"class": "modelName"}).text
+            self.unit_label = unit.find("span", {"class": "modelName"}).text
 
     def get_rent(self, unit):
         try:
@@ -82,7 +81,7 @@ class Single_Unit:
 
     @clean_unit_information
     def parse_unit(self, unit):
-        self.get_unit_id(unit)
+        self.get_unit_label(unit)
         self.get_rent(unit)
         self.get_bedrooms(unit)
         self.get_bathrooms(unit)
@@ -90,9 +89,8 @@ class Single_Unit:
         self.get_date_available(unit)
 
         return {
-            "property_name": self.property_name,
-            "property_zipcode": self.property_zipcode,
-            "unit_id": self.unit_id,
+            "property_id": self.property_id,
+            "unit_label": self.unit_label,
             "rent": self.rent,
             "beds": self.beds,
             "baths": self.baths,

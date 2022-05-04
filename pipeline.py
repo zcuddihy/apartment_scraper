@@ -1,3 +1,4 @@
+#%%
 from sys import argv
 import numpy as np
 import time
@@ -24,8 +25,8 @@ class ApartmentsPipeline:
         state_abbv: str,
         db_file: str,
         start_price: int = 500,
-        end_price: int = 6000,
-        price_step: int = 200,
+        end_price: int = 750,
+        price_step: int = 250,
     ):
         """Constructs the attributes to use for web scraping apartments
 
@@ -50,6 +51,8 @@ class ApartmentsPipeline:
         self.property_urls = []
         self.empty_units_logger = []
         self.scrape_count = 0
+
+        db.create_tables(self.conn)
 
     def sleep_crawler(self):
 
@@ -118,32 +121,24 @@ class ApartmentsPipeline:
         ).parse_property_page(soup)
 
         property_data["city_name"] = city_name
-        if (
-            db.property_exists(
-                self.conn, property_data["property_name"], property_data["zipcode"]
-            )
-            != 1
-        ):
-            db.insert_data(self.conn, property_data, "properties")
-        else:
-            db.update_data(self.conn, property_data)
+        db.insert_data(self.conn, property_data, "properties")
 
         return property_data
 
-    def save_units_data(self, soup, property_name, zipcode, url):
+    def save_units_data(self, soup, property_name: str, zipcode: str, url: str):
 
         units = ApartmentsPipeline.get_all_units(soup)
-
         # Keep track of all units that don't have any units listed
         # This will alert me if the HTML format is likely different
         if len(units) == 0:
             self.empty_units_logger.append(url)
 
+        # Get property_id
+        property_id = db.get_property_id(self.conn, property_name, zipcode)
+
         # Extract each unit from the listing and save to the db
         for unit in units:
-            current_unit = unit_parser.Single_Unit(property_name, zipcode).parse_unit(
-                unit
-            )
+            current_unit = unit_parser.Single_Unit(property_id).parse_unit(unit)
             if current_unit["date_available"] != "Not Available":
                 db.insert_data(self.conn, current_unit, "units")
             else:
@@ -181,8 +176,8 @@ class ApartmentsPipeline:
         print("Done!")
 
         # Save the list of urls that had no units
-        with open("./data/no_units_found.pickle", "wb") as handle:
-            pkl.dump(self.empty_units_logger, handle)
+        # with open("./data/no_units_found.pickle", "wb") as handle:
+        #     pkl.dump(self.empty_units_logger, handle)
 
 
 seattle_counties = ["King County"]
@@ -224,3 +219,4 @@ if __name__ == "__main__":
     # Report the total time used
     print("Time used: {}".format(time.time() - start_time))
 
+# %%

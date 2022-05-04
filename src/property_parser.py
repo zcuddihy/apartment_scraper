@@ -116,7 +116,7 @@ class Property:
             )
             self.year_built = re.sub("[\D]", "", year_built)
         except:
-            self.year_built = "NULL"
+            self.year_built = None
 
     def parse_property_page(self, soup):
         self.get_property_description(soup)
@@ -134,9 +134,11 @@ class Property:
         if len(self.unique_features) != None:
             combined["unique_features"] = ", ".join(self.unique_features)
         else:
-            combined["unique_features"] = None
+            pass
 
-        combined["year_built"] = self.year_built
+        if self.year_built != None:
+            combined["year_built"] = self.year_built
+
         combined["property_url"] = str(self.property_url)
         return combined
 
