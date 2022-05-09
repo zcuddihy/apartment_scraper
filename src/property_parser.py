@@ -4,7 +4,7 @@ import re
 
 
 @dataclass
-class Property:
+class Property_Parser:
     property_name: str
     property_url: str
     description: str = field(init=False)
@@ -75,7 +75,7 @@ class Property:
         # Some listings don't have any unique features listed
         # find_all() will throw an error in this case
         except:
-            pass
+            self.unique_features = None
 
     def extract_location(self, soup):
         """Parse the property HTML and search for location amenities"""
@@ -131,14 +131,12 @@ class Property:
         )
         combined["description"] = str(self.description)
 
-        if len(self.unique_features) != None:
+        if self.unique_features != None:
             combined["unique_features"] = ", ".join(self.unique_features)
         else:
-            pass
+            combined["unique_features"] = None
 
-        if self.year_built != None:
-            combined["year_built"] = self.year_built
-
+        combined["year_built"] = self.year_built
         combined["property_url"] = str(self.property_url)
         return combined
 

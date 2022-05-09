@@ -1,13 +1,10 @@
 from sys import argv
 import numpy as np
 import time
-from src.scraper import make_request, generate_page_URL
-import src.unit_parser as unit_parser
-import src.property_parser as property_parser
-import src.database as db
+from .scraper import make_request, generate_page_URL
+from .unit_parser import Unit_Parser
+from .property_parser import Property_Parser
 import pickle as pkl
-
-db_file = "./data/apartments.db"
 
 
 class ApartmentsPipeline:
@@ -22,7 +19,6 @@ class ApartmentsPipeline:
         self,
         city_name: str,
         state_abbv: str,
-        db_file: str,
         start_price: int = 500,
         end_price: int = 750,
         price_step: int = 250,
@@ -43,13 +39,12 @@ class ApartmentsPipeline:
         self.price_step = int(price_step)
         self.city_name = city_name
         self.state_abbv = state_abbv
-        self.conn = db.create_connection(db_file)
         self.BASE_URL = f"https://www.apartments.com/{city_name.lower().replace(' ', '-')}-{state_abbv.lower()}/"  # "/price range/page"
         self.price_range = list(np.arange(start_price, end_price, price_step))
         self.page_range = list(np.arange(1, 29, 1))
         self.property_urls = []
-        self.empty_units_logger = []
-        self.scrape_count = 0
+        self.properties = []
+        self.units = {}
 
     def get_property_urls(self):
 
@@ -57,7 +52,6 @@ class ApartmentsPipeline:
         for min_price in self.price_range:
 
             for page_num in self.page_range:
-                self.sleep_crawler()
                 url = generate_page_URL(
                     self.BASE_URL, min_price, min_price + self.price_step, page_num
                 )
@@ -73,8 +67,6 @@ class ApartmentsPipeline:
                 for listing in listings:
                     url = listing.find("a", {"class": "property-link"})["href"]
                     self.property_urls.append(url)
-                # Add to the scraping counter
-                self.scrape_count += 1
 
         # Remove any duplicate property URLs
         self.property_urls = list(set(self.property_urls))
@@ -90,50 +82,41 @@ class ApartmentsPipeline:
                 property_name = soup.find("h1", {"class": "propertyName"}).get_text(
                     strip=True
                 )
-                # Extract all property details and save to the db
-                property_data = self.save_property_data(
-                    soup, property_name, self.city_name, url
+
+                # Extract all property details
+                self.properties.append(
+                    self.parse_property(soup, property_name, self.city_name, url)
                 )
                 # Find all of the current unit listings
-                self.save_units_data(soup, property_name, property_data["zipcode"], url)
+                self.units[property_name] = {
+                    "units": self.parse_units(soup),
+                    "zipcode": self.properties[-1]["zipcode"],
+                }
 
             except Exception as e:
                 print(f"The exception, {e}, occurred at the following URL: {url}")
                 continue
-            # Add to the scraping counter
-            self.scrape_count += 1
 
-        # Close db connection after all information is saved
-        self.conn.close()
-
-    def save_property_data(self, soup, property_name, city_name, url):
-        property_data = property_parser.Property(
-            property_name, url
-        ).parse_property_page(soup)
+    def parse_property(self, soup, property_name, city_name, url):
+        property_data = Property_Parser(property_name, url).parse_property_page(soup)
 
         property_data["city_name"] = city_name
-        db.insert_data(self.conn, property_data, "properties")
 
         return property_data
 
-    def save_units_data(self, soup, property_name: str, zipcode: str, url: str):
+    def parse_units(self, soup):
 
-        units = ApartmentsPipeline.get_all_units(soup)
-        # Keep track of all units that don't have any units listed
-        # This will alert me if the HTML format is likely different
-        if len(units) == 0:
-            self.empty_units_logger.append(url)
+        raw_units = self.get_all_units(soup)
 
-        # Get property_id
-        property_id = db.get_property_id(self.conn, property_name, zipcode)
-
-        # Extract each unit from the listing and save to the db
-        for unit in units:
-            current_unit = unit_parser.Single_Unit(property_id).parse_unit(unit)
+        # Extract each unit from the listing
+        units = []
+        for unit in raw_units:
+            current_unit = Unit_Parser().parse_unit(unit)
             if current_unit["date_available"] != "Not Available":
-                db.insert_data(self.conn, current_unit, "units")
+                units.append(current_unit)
             else:
                 pass
+        return units
 
     @staticmethod
     def get_all_units(soup):
@@ -164,11 +147,7 @@ class ApartmentsPipeline:
         print("All property urls extracted")
         print(f"The total number of listings is {len(self.property_urls)}")
         self.scrape_property_urls()
-        print("Done!")
-
-        # Save the list of urls that had no units
-        # with open("./data/no_units_found.pickle", "wb") as handle:
-        #     pkl.dump(self.empty_units_logger, handle)
+        print("Done extracting properties and units")
 
 
 seattle_counties = ["King County"]
@@ -195,24 +174,4 @@ chicago_counties = ["Chicago"]
 # Boston
 
 # Washington DC
-
-if __name__ == "__main__":
-
-    # Collect the information to set up the scraping pipeline
-    city_names = input("Enter the city name:  ").split(",")
-    state_abbv = input("Enter the state abbreviation:  ")
-    end_price = int(input("Enter the maximum price to consider for scraping URLs:  "))
-
-    # Record the start time of the program
-    start_time = time.time()
-
-    # Scrape all of the cities
-    for city in city_names:
-        print(f"Starting {city}")
-        pipeline = ApartmentsPipeline(city, state_abbv, db_file, end_price=end_price)
-        pipeline.run()
-        print(f"Done with {city}")
-
-    # Report the total time used
-    print("Time used: {}".format(time.time() - start_time))
 

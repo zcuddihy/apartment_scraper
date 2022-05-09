@@ -5,8 +5,7 @@ from datetime import date
 
 
 @dataclass
-class Single_Unit:
-    property_id: int
+class Unit_Parser:
     unit_label: str = field(init=False)
     rent: str = field(init=False)
     beds: str = field(init=False)
@@ -70,7 +69,7 @@ class Single_Unit:
             self.date_available = (
                 unit.find("span", {"class": "dateAvailable"})
                 .get_text(strip=True)
-                .strip("availibility")
+                .strip("availability")
             )
         except AttributeError:
             self.date_available = unit.find(
@@ -89,7 +88,6 @@ class Single_Unit:
         self.get_date_available(unit)
 
         return {
-            "property_id": self.property_id,
             "unit_label": self.unit_label,
             "rent": self.rent,
             "beds": self.beds,
