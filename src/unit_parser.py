@@ -30,6 +30,9 @@ class Unit_Parser:
         except:
             self.rent = unit.find("span", {"class": "rentLabel"}).text
 
+        if self.rent == "":
+            self.rent = None
+
     def get_bedrooms(self, unit):
         try:
             self.beds = unit["data-beds"]
@@ -63,6 +66,8 @@ class Unit_Parser:
                 .find_all("span")[2]
                 .get_text()
             )
+        if self.area == "":
+            self.area = None
 
     def get_date_available(self, unit):
         try:

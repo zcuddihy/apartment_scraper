@@ -1,10 +1,10 @@
 from sys import argv
 import numpy as np
-import time
 from .scraper import make_request, generate_page_URL
 from .unit_parser import Unit_Parser
 from .property_parser import Property_Parser
 import pickle as pkl
+from datetime import date
 
 
 class ApartmentsPipeline:
@@ -148,6 +148,13 @@ class ApartmentsPipeline:
         print(f"The total number of listings is {len(self.property_urls)}")
         self.scrape_property_urls()
         print("Done extracting properties and units")
+
+        # Dump the saved data to have as a backup
+        data_dump = [self.properties, self.units]
+        scrape_date = date.today().strftime("%Y-%m-%d")
+        filename = f"{self.city_name}_{scrape_date}.pkl"
+        with open(f"./data/raw/{filename}", "wb") as file:
+            pkl.dump(data_dump, file)
 
 
 seattle_counties = ["King County"]
