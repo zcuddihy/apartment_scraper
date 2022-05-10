@@ -16,6 +16,9 @@ class dbPostgres:
         # Create a connection to the database
         self.conn = self.create_connection()
 
+        # Create tables if they don't exist
+        self.create_tables()
+
     def create_connection(self):
         try:
             conn = psycopg2.connect(
@@ -37,20 +40,20 @@ class dbPostgres:
                             property_id SERIAL PRIMARY KEY,
                             property_name text NOT NULL,
                             city_name text NOT NULL,
-                            fitness_center int,
-                            air_conditioning int,
-                            in_unit_washer_dryer int,
-                            dishwasher int,
-                            laundry_facilities int,
-                            car_charging int,
-                            roof int,
-                            concierge int,
-                            pool int,
-                            elevator int,
-                            garage int,
-                            dogs_allowed int,
-                            cats_allowed int,
-                            income_restrictions int,
+                            fitness_center boolean,
+                            air_conditioning boolean,
+                            in_unit_washer_dryer boolean,
+                            dishwasher boolean,
+                            laundry_facilities boolean,
+                            car_charging boolean,
+                            roof boolean,
+                            concierge boolean,
+                            pool boolean,
+                            elevator boolean,
+                            garage boolean,
+                            dogs_allowed boolean,
+                            cats_allowed boolean,
+                            income_restrictions boolean,
                             latitude real,
                             longitude real,
                             neighborhood text,
@@ -71,7 +74,7 @@ class dbPostgres:
                             sqft real,
                             date_available date,
                             date_scraped date,
-                            property_id int,
+                            property_id int NOT NULL,
                             FOREIGN KEY(property_id) REFERENCES properties(property_id),
                             UNIQUE(property_id, unit_label, beds, baths, sqft, date_scraped)
                             ); """
@@ -122,7 +125,15 @@ class dbPostgres:
         cur = self.conn.cursor()
 
         try:
-            columns = data[0]["units"].keys()
+            columns = [
+                "unit_label",
+                "rent",
+                "beds",
+                "baths",
+                "sqft",
+                "date_available",
+                "date_scraped",
+            ]
             value_placeholders = ["%(" + item + ")s" for item in columns]
             property_id_query = self.get_property_id_query(property_name, zipcode)
             query = f"""INSERT INTO units (property_id, {(', '.join(columns))}) 
@@ -134,7 +145,7 @@ class dbPostgres:
         except UniqueViolation:
             pass
         except Exception as e:
-            print(e)
+            print(f"Error: {e} at property: {property_name}")
             self.conn.rollback()
         finally:
             cur.close()

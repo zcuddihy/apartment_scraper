@@ -21,7 +21,7 @@ if __name__ == "__main__":
         pipeline.run()
         print(f"Done with {city}")
         properties = pipeline.properties
-        units = pipeline.units
+        all_units = pipeline.units
 
         # Establish a connection to the database
         database = dbPostgres(
@@ -32,7 +32,7 @@ if __name__ == "__main__":
         database.insert_properties(properties)
 
         # Save all of the units
-        for prop_name, values in units.items():
+        for prop_name, values in all_units.items():
             zipcode = values["zipcode"]
             units = values["units"]
             database.insert_units(units, prop_name, zipcode)
@@ -44,4 +44,6 @@ if __name__ == "__main__":
     print("Time used: {}".format(time.time() - start_time))
 
 
+# %%
+list(all_units.keys())[0]
 # %%
