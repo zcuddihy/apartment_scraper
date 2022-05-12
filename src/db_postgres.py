@@ -62,7 +62,7 @@ class dbPostgres:
                             unique_features text,
                             property_url text,
                             year_built int,
-                            UNIQUE(property_name, zipcode)
+                            CONSTRAINT name_city_zipcode_uc UNIQUE(property_name, city_name, zipcode)
                             ); """
 
         query_apartments = """CREATE TABLE IF NOT EXISTS units (
@@ -92,24 +92,24 @@ class dbPostgres:
     def insert_properties(self, data: list):
         cur = self.conn.cursor()
 
-        try:
-            columns = data[0].keys()
-            values = [
-                tuple(value for value in prop_data.values()) for prop_data in data
-            ]
-            query = f"""INSERT INTO properties ({(', '.join(columns))}) 
-                        VALUES %s
-                        ON CONFLICT (property_id) DO NOTHING"""
+        columns = data[0].keys()
+        value_placeholders = ["%(" + item + ")s" for item in columns]
+        query = f"""INSERT INTO properties ({(', '.join(columns))}) 
+                    VALUES ({(', '.join(value_placeholders))})
+                    ON CONFLICT DO NOTHING"""
 
-            extras.execute_values(cur, query, values)
-            self.conn.commit()
-        except UniqueViolation:
-            pass
-        except Exception as e:
-            print(e)
-            self.conn.rollback()
-        finally:
-            cur.close()
+        for i in range(len(data)):
+            prop_name = data[i]["property_name"]
+            try:
+                cur.execute(query, data[i])
+                self.conn.commit()
+            except UniqueViolation as uc:
+                print(f"{prop_name} {uc}")
+                self.conn.rollback()
+            except Exception as e:
+                print(e)
+                self.conn.rollback()
+        cur.close()
 
     @staticmethod
     def get_property_id_query(property_name: str, zipcode: str):
@@ -137,13 +137,12 @@ class dbPostgres:
             value_placeholders = ["%(" + item + ")s" for item in columns]
             property_id_query = self.get_property_id_query(property_name, zipcode)
             query = f"""INSERT INTO units (property_id, {(', '.join(columns))}) 
-                        VALUES (({property_id_query}), {(', '.join(value_placeholders))})
-                        ON CONFLICT (unit_id) DO NOTHING"""
+                        VALUES (({property_id_query}), {(', '.join(value_placeholders))})"""
 
             cur.executemany(query, data)
             self.conn.commit()
         except UniqueViolation:
-            pass
+            self.conn.rollback()
         except Exception as e:
             print(f"Error: {e} at property: {property_name}")
             self.conn.rollback()

@@ -43,3 +43,5 @@ if __name__ == "__main__":
     # Report the total time used
     print("Time used: {}".format(time.time() - start_time))
 
+
+# %%

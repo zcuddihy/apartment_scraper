@@ -79,8 +79,10 @@ class ApartmentsPipeline:
             if soup == None:
                 continue
             try:
-                property_name = soup.find("h1", {"class": "propertyName"}).get_text(
-                    strip=True
+                property_name = (
+                    soup.find("h1", {"class": "propertyName"})
+                    .get_text(strip=True)
+                    .replace("'", "")
                 )
 
                 # Extract all property details
