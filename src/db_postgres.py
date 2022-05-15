@@ -62,7 +62,7 @@ class dbPostgres:
                             unique_features text,
                             property_url text,
                             year_built int,
-                            CONSTRAINT name_city_zipcode_uc UNIQUE(property_name, city_name, zipcode)
+                            CONSTRAINT name_zipcode_uc UNIQUE(property_name, zipcode)
                             ); """
 
         query_apartments = """CREATE TABLE IF NOT EXISTS units (
@@ -96,7 +96,9 @@ class dbPostgres:
         value_placeholders = ["%(" + item + ")s" for item in columns]
         query = f"""INSERT INTO properties ({(', '.join(columns))}) 
                     VALUES ({(', '.join(value_placeholders))})
-                    ON CONFLICT DO NOTHING"""
+                    ON CONFLICT ON CONSTRAINT name_zipcode_uc
+                    DO
+                        UPDATE SET business_center=EXCLUDED.business_center"""
 
         for i in range(len(data)):
             prop_name = data[i]["property_name"]

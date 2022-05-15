@@ -35,6 +35,7 @@ class Property_Parser:
         # Value = the html element the value should be stored in
         html_amenities = {
             "Fitness Center": "span",
+            "Business Center": "span",
             "Air Conditioning": "span",
             "In Unit Washer & Dryer": "span",
             "Dishwasher": "span",
